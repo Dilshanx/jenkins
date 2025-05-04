@@ -1,26 +1,42 @@
 ---
 - name: Playbook to build our docker image
   hosts: localhost
+  vars:
+    work_dir: "{{ lookup('env', 'HOME') }}/Day6/Ansible"
+    scripts_dir: "{{ lookup('env', 'HOME') }}/Day6/Ansible/bashscripts"
   tasks:  
+   - name: Print current working directory for debugging
+     ansible.builtin.command: pwd
+     register: current_dir
+     changed_when: false
+     
+   - name: Debug current directory
+     ansible.builtin.debug:
+       var: current_dir.stdout
+       
    - name: remove existing bashscripts directory and ignore task if bashscripts folder is not there
-     ansible.builtin.shell:
-       cmd: sudo rm -r bashscripts
+     ansible.builtin.file:
+       path: "{{ scripts_dir }}"
+       state: absent
      ignore_errors: yes    
        
    - name: create new bashscripts directory
-     ansible.builtin.shell:
-       cmd: sudo mkdir bashscripts         
+     ansible.builtin.file:
+       path: "{{ scripts_dir }}"
+       state: directory
+       mode: '0755'
 
    - name: clone bash scripts repo into server
-     ansible.builtin.shell:
-       cmd: sudo git clone https://github.com/sagarkakkalasworld/Day6.git
-       chdir: bashscripts/
+     ansible.builtin.git:
+       repo: https://github.com/sagarkakkalasworld/Day6.git
+       dest: "{{ scripts_dir }}/Day6"
+       clone: yes
+       update: yes
 
-   # Verify the directory structure to ensure we're using the correct path
    - name: verify directory structure
      ansible.builtin.command: ls -la
      args:
-       chdir: /home/ubuntu/bashscripts
+       chdir: "{{ scripts_dir }}"
      register: dir_contents
      changed_when: false
 
@@ -28,15 +44,29 @@
      ansible.builtin.debug:
        var: dir_contents.stdout_lines
 
-   - name: giving ownership to build.sh and giving excecuting permissions to build.sh
-     ansible.builtin.shell:
-       cmd: sudo chown ubuntu build.sh && sudo chmod 744 build.sh
-       chdir: /home/ubuntu/bashscripts/Day6/Bash
-     # Use 'creates' to check if the file exists, avoid the error if it doesn't
-     args:
-       creates: /home/ubuntu/bashscripts/Day6/Bash/build.sh
+   - name: find build.sh file
+     ansible.builtin.find:
+       paths: "{{ scripts_dir }}/Day6"
+       patterns: "build.sh"
+       recurse: yes
+     register: build_script
+
+   - name: debug build script path
+     ansible.builtin.debug:
+       var: build_script.files
+       verbosity: 0
+
+   - name: giving ownership to build.sh and giving executing permissions
+     ansible.builtin.file:
+       path: "{{ item.path }}"
+       owner: "{{ lookup('env', 'USER') }}"
+       mode: '0744'
+     with_items: "{{ build_script.files }}"
+     when: build_script.files | length > 0
 
    - name: running script to make build
      ansible.builtin.shell: 
-       cmd: ./build.sh
-       chdir: /home/ubuntu/bashscripts/Day6/Bash
+       cmd: ./{{ item.path | basename }}
+       chdir: "{{ item.path | dirname }}"
+     with_items: "{{ build_script.files }}"
+     when: build_script.files | length > 0
