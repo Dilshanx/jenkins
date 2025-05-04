@@ -16,10 +16,25 @@
        cmd: sudo git clone https://github.com/sagarkakkalasworld/Day6.git
        chdir: bashscripts/
 
+   # Verify the directory structure to ensure we're using the correct path
+   - name: verify directory structure
+     ansible.builtin.command: ls -la
+     args:
+       chdir: /home/ubuntu/bashscripts
+     register: dir_contents
+     changed_when: false
+
+   - name: debug directory structure
+     ansible.builtin.debug:
+       var: dir_contents.stdout_lines
+
    - name: giving ownership to build.sh and giving excecuting permissions to build.sh
      ansible.builtin.shell:
        cmd: sudo chown ubuntu build.sh && sudo chmod 744 build.sh
        chdir: /home/ubuntu/bashscripts/Day6/Bash
+     # Use 'creates' to check if the file exists, avoid the error if it doesn't
+     args:
+       creates: /home/ubuntu/bashscripts/Day6/Bash/build.sh
 
    - name: running script to make build
      ansible.builtin.shell: 
