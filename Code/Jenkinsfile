@@ -6,7 +6,7 @@ pipeline {
     }
 
     stages {
-        stage('Cleanup and Clone Repository') {
+        // stage('Cleanup and Clone Repository') {
         //     steps {
         //         script {
         //             // Remove existing Day6 directory and clone the latest repo
